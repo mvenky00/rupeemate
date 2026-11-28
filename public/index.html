@@ -627,7 +627,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 .chart-wrap{position:relative}
 .chart .xhair{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
 .chart .hdot{fill:var(--surface);stroke:var(--accent);stroke-width:2.5;pointer-events:none}
-.chart .bar-hit{cursor:pointer}
+.chart .bar-hit{cursor:pointer;fill:transparent}
 .chart .bar-col{fill:color-mix(in srgb,var(--ink) 5%,transparent);opacity:0;transition:opacity .12s ease;pointer-events:none}
 .chart .bar-grp:hover .bar-col,.chart .bar-grp.is-act .bar-col{opacity:1}
 .chart .bar-grp:hover rect.bar-v,.chart .bar-grp.is-act rect.bar-v{filter:brightness(1.08)}
@@ -1308,7 +1308,16 @@ function tipAttr(title,rows){
   return ' data-tip="'+esc(JSON.stringify({t:title,r:rows}))+'"';
 }
 function lineChart(pts,mode){
-  if(pts.length<2)return '<p class="muted">As you track balances over time, your monthly trajectory appears automatically here.</p>';
+  if(pts.length<2){
+    if(pts.length===1){
+      var cl=byClass(), ta=pts[0].a||0;
+      var cParts=CLS.map(function(c){return {n:c.n,c:c.c,v:cl[c.k]||0,pct:ta>0?(cl[c.k]||0)/ta*100:0}}).filter(function(p){return p.v>0}).sort(function(a,b){return b.v-a.v});
+      return '<div style="margin-top:6px"><p class="sm muted" style="margin-bottom:8px">Starting baseline recorded for <b>'+esc(pts[0].fullLabel||pts[0].label)+'</b> ('+esc(fmtINR(pts[0].nw))+'). Monthly trend curves begin automatically from your second month.</p>'+
+        (cParts.length?stackBar(cParts)+'<div class="legend" style="margin-top:10px">'+cParts.map(function(p){return '<span><i class="dot" style="background:var('+p.c+')"></i>'+esc(p.n)+' '+pc(p.pct/100,0)+' ('+esc(fmtC(p.v))+')</span>'}).join('')+'</div>':'')+
+        '</div>';
+    }
+    return '<p class="muted">Add an asset, account, or loan and your monthly trajectory builds automatically here.</p>';
+  }
   var split=mode==='split';
   var mob=window.innerWidth<=640, W=chartWidth(false), H=mob?214:252, L=mob?52:68, R=mob?78:96, T=22, B=30;
   var vals=[];
@@ -1379,7 +1388,7 @@ function barChart(months){
       '<rect class="bar-col" rx="6" x="'+(gx+2).toFixed(1)+'" y="'+T+'" width="'+Math.max(8,gw-4).toFixed(1)+'" height="'+(H-T-B)+'"/>'+
       '<rect class="bar-v" rx="'+rx+'" ry="'+rx+'" x="'+(cx-bw-1.5).toFixed(1)+'" y="'+(H-B-hi).toFixed(1)+'" width="'+bw+'" height="'+hi.toFixed(1)+'" style="fill:var(--c1)"/>'+
       '<rect class="bar-v" rx="'+rx+'" ry="'+rx+'" x="'+(cx+1.5).toFixed(1)+'" y="'+(H-B-he).toFixed(1)+'" width="'+bw+'" height="'+he.toFixed(1)+'" style="fill:var(--c5)"/>'+
-      '<rect class="bar-hit" x="'+gx.toFixed(1)+'" y="'+T+'" width="'+gw.toFixed(1)+'" height="'+(H-T)+'"/>'+
+      '<rect class="bar-hit" fill="transparent" x="'+gx.toFixed(1)+'" y="'+T+'" width="'+gw.toFixed(1)+'" height="'+(H-T)+'"/>'+
       '<text class="ax" x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" style="'+(d.k===activeK?'font-weight:700;fill:var(--ink)':'')+'">'+esc(monthLabel(d.k,true))+'</text></g>';
   }).join('');
   var totInc=data.reduce(function(a,d){return a+d.inc},0), totExp=data.reduce(function(a,d){return a+d.exp},0), nM=data.filter(function(d){return d.inc>0||d.exp>0}).length||1;
@@ -1599,7 +1608,7 @@ function vOverview(){
   out+='<div class="sec-div desk-only">Trajectory &amp; cash flow</div>';
   var rngBtns=ptsAll.length>6?'<div class="seg-sm" role="group" aria-label="Range">'+[['6m','6M'],['1y','1Y'],['all','All']].map(function(r){return '<button type="button" data-act="nw-range" data-v="'+r[0]+'" aria-pressed="'+(ui.nwRange===r[0])+'">'+r[1]+'</button>'}).join('')+'</div>':'';
   var modeBtns='<div class="seg-sm" role="group" aria-label="Chart metric"><button type="button" data-act="nw-mode" data-v="nw" aria-pressed="'+(ui.nwMode!=='split')+'">Net worth</button><button type="button" data-act="nw-mode" data-v="split" aria-pressed="'+(ui.nwMode==='split')+'">Assets vs Debt</button></div>';
-  out+='<div class="card ov-trend"><div class="row"><div><h2>Net worth over time</h2>'+(autoOn?'<span class="pill good" style="margin-left:8px">Auto monthly</span>':'')+'</div><div class="row" style="gap:8px">'+modeBtns+rngBtns+(autoOn?'':'<button class="btn ghost sm" data-act="snap">Save snapshot</button>')+'</div></div>'+
+  out+='<div class="card ov-trend"><div class="row"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h2>Net worth over time</h2>'+(autoOn?'<span class="pill good">Auto monthly</span>':'')+'</div><div class="row" style="gap:8px">'+modeBtns+rngBtns+(autoOn?'':'<button class="btn ghost sm" data-act="snap">Save snapshot</button>')+'</div></div>'+
     lineChart(pts,ui.nwMode)+
     (nwSpan!=null?'<div class="nw-stats"><span>Period change: <b class="'+(nwSpan>=0?'good':'bad')+'">'+(nwSpan>=0?'+':'−')+fmtC(Math.abs(nwSpan))+'</b></span>'+(bestMo!=null&&bestMo>0?'<span>Best month: <b class="good">+'+fmtC(bestMo)+'</b></span>':'')+(pts.length>1?'<span>Avg/mo: <b>'+fmtC(nwSpan/(pts.length-1))+'</b></span>':'')+'</div>':'')+
     (rawSnaps.length?'<details style="margin-top:10px"><summary>Monthly checkpoints ('+rawSnaps.length+')</summary><div class="scroll desk-only"><table class="tbl" style="min-width:520px"><thead><tr><th style="width:18%">Date</th><th class="r" style="width:20%">Assets</th><th class="r" style="width:20%">Liabilities</th><th class="r" style="width:22%">Net worth</th><th class="r" style="width:20%"></th></tr></thead><tbody>'+
