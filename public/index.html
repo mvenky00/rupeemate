@@ -1931,7 +1931,13 @@ function flush(){
   if(!remoteDoc)return;
   if(flushing){clearTimeout(saveT);saveT=setTimeout(flush,400);return}
   flushing=true;
-  remoteDoc.set({v:1,s:JSON.parse(JSON.stringify(S))}).then(function(){setStatus('Saved to your Google Drive')},function(e){setStatus('Saved in this browser. Drive sync needs sign-in')}).then(function(){flushing=false});
+  remoteDoc.set({v:1,s:JSON.parse(JSON.stringify(S))}).then(function(){setStatus('Saved to your Google Drive')},function(e){
+    var exp=e&&e.message==='Sign-in expired';
+    if(exp){remoteDoc=null;g.token='';g.exp=0;gSaveSess()}
+    setStatus(exp?'Saved locally · Tap Reconnect to sync Drive':'Saved in this browser. Drive sync needs sign-in');
+    var ae=document.activeElement;
+    if(exp&&(!ae||!ae.matches||!ae.matches('input,select,textarea')))render();
+  }).then(function(){flushing=false});
 }
 function update(){
   commit();
@@ -2016,28 +2022,37 @@ window.addEventListener('resize',function(){clearTimeout(rzT);rzT=setTimeout(fun
 window.addEventListener('hashchange',function(){if(window.innerWidth<=640)ui.collapsed=true;if(ui.sheet&&ui.sheet.kind==='menu')closeSheet();route();render();window.scrollTo(0,0)});
 
 /* ---------- Google sign-in and Drive sync (standalone app only) ---------- */
-var GID='', GSCOPE='https://www.googleapis.com/auth/drive.appdata openid email', GFILE='kanakku-book.json';
-var g={state:'loading',email:'',msg:'',token:'',exp:0,fileId:'',client:null,timer:0};
+var GID='', GSCOPE='https://www.googleapis.com/auth/drive.appdata openid email', GFILE='kanakku-book.json', GSKEY='kb-gsess';
+var g={state:'loading',email:'',msg:'',token:'',exp:0,fileId:'',client:null,timer:0,silent:false};
+function gTokenValid(){return !!(g.token&&g.exp&&Date.now()<g.exp-30000)}
+function gLoadSess(){try{var r=localStorage.getItem(GSKEY);return r?JSON.parse(r):null}catch(e){return null}}
+function gSaveSess(){
+  try{
+    localStorage.setItem('kb-g','1');
+    localStorage.setItem(GSKEY,JSON.stringify({token:g.token||'',exp:g.exp||0,email:g.email||'',fileId:g.fileId||''}));
+  }catch(e){}
+}
+function gClearSess(){try{localStorage.removeItem('kb-g');localStorage.removeItem(GSKEY)}catch(e){}}
 function gSet(st,msg){g.state=st;g.msg=msg||'';if(!ui.sheet)render();else if(ui.sheet.kind==='menu'){render();renderSheet()}}
 function lts(){try{return +localStorage.getItem('kb-ts')||0}catch(e){return 0}}
 function gReq(url,opt){
   if(!g.token||Date.now()>g.exp-30000)return Promise.reject(new Error('Sign-in expired'));
   opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+g.token},opt.headers||{});
   return fetch(url,opt).then(function(r){
-    if(r.status===401){g.token='';throw new Error('Sign-in expired')}
+    if(r.status===401){g.token='';g.exp=0;gSaveSess();throw new Error('Sign-in expired')}
     if(!r.ok)throw new Error('Drive error '+r.status);
     return r;
   });
 }
 function gFind(){
-  return gReq('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=10&q='+encodeURIComponent("name='"+GFILE+"'")+'&fields=files(id)').then(function(r){return r.json()}).then(function(j){g.fileId=j.files&&j.files[0]?j.files[0].id:'';return g.fileId});
+  return gReq('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=10&q='+encodeURIComponent("name='"+GFILE+"'")+'&fields=files(id)').then(function(r){return r.json()}).then(function(j){g.fileId=j.files&&j.files[0]?j.files[0].id:'';if(g.fileId)gSaveSess();return g.fileId});
 }
 function gRead(){return gReq('https://www.googleapis.com/drive/v3/files/'+g.fileId+'?alt=media').then(function(r){return r.json()})}
 function gWrite(obj){
   var body=JSON.stringify(obj);
   if(g.fileId)return gReq('https://www.googleapis.com/upload/drive/v3/files/'+g.fileId+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:body});
   var b='kbx'+Date.now(), meta=JSON.stringify({name:GFILE,parents:['appDataFolder']});
-  return gReq('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:'--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--'}).then(function(r){return r.json()}).then(function(j){g.fileId=j.id});
+  return gReq('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:'--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--'}).then(function(r){return r.json()}).then(function(j){g.fileId=j.id;gSaveSess()});
 }
 var driveDoc={set:function(o){return gWrite({v:1,ts:lts()||Date.now(),s:o.s})}};
 function gConnect(){
@@ -2053,30 +2068,67 @@ function gConnect(){
     });
   });
 }
+function gScheduleRefresh(){
+  clearTimeout(g.timer);
+  if(!gTokenValid())return;
+  g.timer=setTimeout(function(){gSignIn('none',true)},Math.max(60000,g.exp-Date.now()-300000));
+}
 function gToken(resp){
-  if(!resp||resp.error){gSet('out',resp&&resp.error==='interaction_required'?'':'Sign-in did not complete.');return}
+  var sil=g.silent; g.silent=false;
+  if(!resp||resp.error){
+    if(sil||g.state==='in'){
+      if(g.state==='in'){g.token='';g.exp=0;gSaveSess();setStatus('Drive sync paused · Tap Reconnect');render()}
+      else gSet('out','');
+      return;
+    }
+    gSet('out',resp&&resp.error==='interaction_required'?'':'Sign-in did not complete.');
+    return;
+  }
   g.token=resp.access_token;g.exp=Date.now()+(resp.expires_in||3600)*1000;
-  try{localStorage.setItem('kb-g','1')}catch(e){}
-  clearTimeout(g.timer);g.timer=setTimeout(function(){gSignIn('none')},Math.max(60000,(resp.expires_in||3600)*1000-300000));
-  gSet('busy','Connecting to your Google Drive…');
-  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+g.token}}).then(function(r){return r.json()}).then(function(j){g.email=j.email||''},function(){})
-    .then(gConnect).then(function(){setStatus('Saved to your Google Drive');gSet('in','')},function(e){remoteDoc=null;gSet('out','Could not reach Google Drive: '+e.message)});
+  gSaveSess();
+  gScheduleRefresh();
+  if(!sil)gSet('in','');
+  setStatus('Connecting to your Google Drive…');
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+g.token}}).then(function(r){return r.json()}).then(function(j){if(j&&j.email){g.email=j.email;gSaveSess()}},function(){})
+    .then(gConnect).then(function(){setStatus('Saved to your Google Drive');gSet('in','')},function(e){
+      remoteDoc=null;
+      var msg=e&&e.message==='Sign-in expired'?'Drive sync paused · Tap Reconnect':('Could not reach Google Drive: '+(e&&e.message||'network error'));
+      setStatus(msg);
+      gSet('in','');
+    });
 }
 function gInit(){
   if(!GID||!window.google||!google.accounts||!google.accounts.oauth2)return false;
-  if(!g.client)g.client=google.accounts.oauth2.initTokenClient({client_id:GID,scope:GSCOPE,callback:gToken,error_callback:function(e){gSet('out',e&&e.type==='popup_closed'?'':'Sign-in did not complete.')}});
+  if(!g.client)g.client=google.accounts.oauth2.initTokenClient({client_id:GID,scope:GSCOPE,callback:gToken,error_callback:function(e){
+    var sil=g.silent; g.silent=false;
+    if(sil||g.state==='in'){
+      if(g.state==='in'){setStatus(gTokenValid()?'Saved to your Google Drive':'Drive sync paused · Tap Reconnect');render()}
+      else gSet('out','');
+      return;
+    }
+    gSet('out',e&&e.type==='popup_closed'?'':'Sign-in did not complete.');
+  }});
   return true;
 }
-function gSignIn(prompt){
-  if(!gInit()){gSet(GID?'out':'off',GID?'Google sign-in is still loading. Try again in a moment.':'');return}
-  if(prompt!=='none')gSet('busy','Opening Google sign-in…');
-  g.client.requestAccessToken({prompt:prompt===undefined?'':prompt});
+function gSignIn(prompt,silent){
+  g.silent=!!silent;
+  if(!gInit()){
+    if(g.state==='in'){
+      if(!silent)setStatus(GID?'Google sign-in is still loading. Try again in a moment.':'Google sign-in is offline right now.');
+    }else gSet(GID?'out':'off',GID?'Google sign-in is still loading. Try again in a moment.':'');
+    return;
+  }
+  if(!silent&&g.state!=='in')gSet('busy','Opening Google sign-in…');
+  var opt={prompt:prompt===undefined?'':prompt};
+  if(g.email)opt.hint=g.email;
+  g.client.requestAccessToken(opt);
 }
 function gSignOut(){
   clearTimeout(g.timer);
+  g.silent=false;
   if(g.token&&window.google&&google.accounts&&google.accounts.oauth2){try{google.accounts.oauth2.revoke(g.token,function(){})}catch(e){}}
-  g.token='';g.email='';g.fileId='';remoteDoc=null;
-  try{localStorage.removeItem('kb-g')}catch(e){}
+  g.token='';g.exp=0;g.email='';g.fileId='';remoteDoc=null;
+  gClearSess();
   setStatus('Saved in this browser only');
   gSet('out','Signed out. Your data stays on this device and in your Drive.');
 }
@@ -2091,9 +2143,9 @@ function gButton(){
 function driveCard(){
   var h='<div class="card"><h2>Google sign-in and Drive sync</h2><div style="margin-top:10px">';
   if(g.state==='in'){
-    var exp=Date.now()>g.exp;
+    var exp=!gTokenValid();
     h+='<p>Signed in'+(g.email?' as <b>'+esc(g.email)+'</b>':'')+'. Your data syncs to a private file in your own Google Drive. Only this app can open that file.</p>'+
-      (exp?'<p class="warn sm" style="margin-top:6px">Sign-in timed out. Reconnect to keep saving to Drive.</p>':'')+
+      (exp?'<p class="warn sm" style="margin-top:6px">Drive sync session paused after idle timeout. Tap Reconnect to sync changes.</p>':'')+
       '<div class="qa" style="margin-top:12px">'+(exp?'<button class="btn" data-act="g-in">Reconnect</button>':'')+'<button class="btn ghost" data-act="g-out">Sign out</button></div>';
   }else h+='<p class="muted sm" style="margin-bottom:10px" role="status">'+esc(gDriveHint())+'</p>'+gButton();
   return h+'</div></div>';
@@ -2103,9 +2155,10 @@ function driveSide(inSheet){
   if(g.state==='off'||g.state==='loading')return '';
   var rail=!inSheet&&ui.collapsed, aIn=inSheet?'data-sa="menu-g-in"':'data-act="g-in"', aOut=inSheet?'data-sa="menu-g-out"':'data-act="g-out"';
   if(g.state==='in'){
-    var em=g.email||'Google account', ini=(em[0]||'G').toUpperCase();
-    return '<div class="uacct"><span class="av" aria-hidden="true" title="'+esc(em)+'">'+esc(ini)+'</span>'+(rail?'':'<span class="em"><b>Signed in</b><span>'+esc(em)+'</span></span>')+
-      '<button type="button" class="toggle" '+aOut+' aria-label="Sign out" title="Sign out">'+ic('logout')+'</button></div>';
+    var em=g.email||'Google account', ini=(em[0]||'G').toUpperCase(), exp=!gTokenValid();
+    var rec=exp?(rail?'<button type="button" class="toggle" '+aIn+' aria-label="Reconnect Google Drive" title="Reconnect Google Drive" style="margin:4px auto 0;color:var(--warn);border-color:var(--warn)">'+ic('undo')+'</button>':'<button type="button" class="btn ghost sm" style="width:100%;justify-content:center;margin-top:6px" '+aIn+'>Reconnect Drive</button>'):'';
+    return '<div class="uacct"><span class="av" aria-hidden="true" title="'+esc(em)+'">'+esc(ini)+'</span>'+(rail?'':'<span class="em"><b>'+(exp?'Session paused':'Signed in')+'</b><span>'+esc(em)+'</span></span>')+
+      '<button type="button" class="toggle" '+aOut+' aria-label="Sign out" title="Sign out">'+ic('logout')+'</button></div>'+rec;
   }
   if(g.state==='busy')return '<div class="uacct"><span class="muted sm">'+(rail?'…':'Connecting…')+'</span></div>';
   return '<div class="uacct">'+(rail?'<button type="button" class="btn gbtn rb" '+aIn+' aria-label="Sign in with Google" title="Sign in with Google">'+gIcon()+'</button>':'<button type="button" class="btn gbtn" '+aIn+'>'+gIcon()+'Continue with Google</button>')+'</div>';
@@ -2114,6 +2167,13 @@ function driveSide(inSheet){
 /* ---------- boot ---------- */
 try{var sp0=localStorage.getItem('kb-side');ui.collapsed=sp0==null?window.innerWidth<=640:sp0==='1'}catch(e){ui.collapsed=window.innerWidth<=640}
 try{var th0=localStorage.getItem('kb-theme');if(th0==='dark'||th0==='light'||th0==='heritage')document.documentElement.setAttribute('data-theme',th0);else document.documentElement.setAttribute('data-theme','light')}catch(e){document.documentElement.setAttribute('data-theme','light')}
+var savedG=gLoadSess();
+if(savedG&&(savedG.email||savedG.token)){
+  g.email=savedG.email||'';
+  g.fileId=savedG.fileId||'';
+  if(savedG.token&&savedG.exp&&Date.now()<savedG.exp-30000){g.token=savedG.token;g.exp=savedG.exp}
+  g.state='in';
+}
 var local=loadLocal();
 loadedLocal=!!local;
 S=normalize(local||examples());
@@ -2144,21 +2204,26 @@ function initRemote(){
     });
   }).catch(function(){remoteDoc=null;setStatus('Saved in this browser only')});
 }
-setStatus('Saved in this browser only');
+setStatus(g.state==='in'?(gTokenValid()?'Connecting to your Google Drive…':'Drive sync paused · Tap Reconnect'):'Saved in this browser only');
 withTimeout(fetch('/google-config.json').then(function(res){
   if(!res.ok)throw new Error('Google configuration unavailable');
   return res.json();
 }),5000).then(function(cfg){
   GID=cfg.clientId||'';
-  gSet(GID?'out':'off','');
-  if(!GID)return;
-  var gtries=0;
-  (function gw(){
-    var flag='';try{flag=localStorage.getItem('kb-g')}catch(e){}
-    if(window.google&&google.accounts&&google.accounts.oauth2){if(flag)gSignIn('none')}
-    else if(gtries++<40)setTimeout(gw,250);
-  })();
-},function(){gSet('off','Google sign-in is unavailable right now. Your data stays in this browser.')});
+  if(g.state!=='in')gSet(GID?'out':'off','');
+  else if(gTokenValid()){
+    gScheduleRefresh();
+    gConnect().then(function(){setStatus('Saved to your Google Drive');gSaveSess();render()},function(e){
+      remoteDoc=null;
+      if(e&&e.message==='Sign-in expired'){g.token='';g.exp=0;gSaveSess();setStatus('Drive sync paused · Tap Reconnect');render()}
+      else setStatus('Could not reach Google Drive: '+(e&&e.message||'network error'));
+    });
+  }else if(GID){
+    setStatus('Drive sync paused · Tap Reconnect');
+  }
+},function(){
+  if(g.state!=='in')gSet('off','Google sign-in is unavailable right now. Your data stays in this browser.');
+});
 
 })();
 </script>
