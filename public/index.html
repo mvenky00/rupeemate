@@ -55,7 +55,7 @@ button{font-family:inherit}
 .brand p{font-size:11px;color:var(--ink-3)}
 .status{font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
 .shell{display:flex;align-items:stretch;min-height:100vh}
-.main{flex:1;min-width:0;margin:8px 8px 0 0;background:var(--canvas);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;padding:0 max(24px,env(safe-area-inset-right,0px)) 96px 28px;box-shadow:0 1px 4px rgba(17,28,24,.03)}
+.main{flex:1;min-width:0;margin:8px 8px 0 0;background:var(--canvas);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;padding:0 max(24px,env(safe-area-inset-right,0px)) 48px 28px;box-shadow:0 1px 4px rgba(17,28,24,.03)}
 .main-in{max-width:1240px;margin-inline:auto;padding-top:18px}
 @media (min-width:1600px){.main-in{max-width:1320px}}
 .dhead{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 calc(max(24px,env(safe-area-inset-right,0px)) * -1) 0 -28px;padding:12px 28px;background:color-mix(in srgb,var(--canvas) 86%,transparent);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-bottom:1px solid color-mix(in srgb,var(--line) 75%,transparent);border-radius:20px 20px 0 0}
@@ -100,7 +100,7 @@ button{font-family:inherit}
 .side .foot{margin-top:auto;display:grid;gap:4px;border-top:1px solid var(--line);padding-top:10px}
 .appear{display:grid;gap:8px;padding:2px 6px 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
 .tseg{display:flex;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:2px;gap:2px;letter-spacing:0;text-transform:none}
-.tseg button{flex:1;justify-content:center;display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--ink-2);padding:5px 6px;border-radius:99px;font:500 12px var(--font);cursor:pointer;white-space:nowrap}
+.tseg button{flex:1;justify-content:center;display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--ink-2);padding:5px 4px;border-radius:99px;font:500 11.5px var(--font);cursor:pointer;white-space:nowrap}
 .tseg button svg{width:14px;height:14px}
 .tseg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .side.rail .sep{margin:8px 4px}
@@ -149,8 +149,8 @@ button{font-family:inherit}
 .gwarn{display:flex;gap:8px;align-items:flex-start;color:var(--warn);font-size:13px}
 .gwarn svg{width:16px;height:16px;flex:none;margin-top:1px}
 .qa{display:flex;gap:8px;flex-wrap:wrap}
-.hbar{display:grid;grid-template-columns:130px 1fr 46px;gap:10px;align-items:center;font-size:13px;margin-bottom:10px}
-.hbar .mono{text-align:right;font-size:12px}
+.hbar{display:grid;grid-template-columns:minmax(108px,126px) 1fr minmax(68px,auto);gap:10px;align-items:center;font-size:13px;margin-bottom:10px}
+.hbar .mono{text-align:right;font-size:12px;white-space:nowrap}
 .news li{margin-bottom:6px;color:var(--ink-2)}
 .set textarea{width:100%;min-height:120px;font:12px/1.4 var(--mono);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
 
@@ -247,7 +247,7 @@ button{font-family:inherit}
 .banner .btn.sm{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:#fff;border-radius:99px;padding:4px 12px;font-weight:600}
 .banner .btn.sm:hover{background:rgba(255,255,255,.26)}
 .btn{font:600 13px var(--font);border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
-:root[data-theme="dark"] .btn{color:#0b1713}
+:root[data-theme="dark"] .btn:not(.ghost):not(.danger){color:#0b1713}
 .btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
 .btn.ghost:hover{border-color:var(--ink-3)}
 .btn.sm{padding:5px 11px;font-size:12px;border-radius:8px}
@@ -267,7 +267,7 @@ button{font-family:inherit}
 :root[data-theme="heritage"] .kpi-card{padding-bottom:14px!important}
 :root[data-theme="heritage"] .spark{width:100%;margin:6px 0 0}
 .ov-hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.95fr);gap:16px;align-items:stretch}
-.ov-hero-grid .ov-nw{margin:0}
+.ov-hero-grid .ov-nw{margin:0;display:flex;flex-direction:column;justify-content:space-between}
 .ov-khead{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;margin-bottom:6px}
 .ov-kic{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;flex:none}
 .ov-kic svg{width:15px;height:15px}
@@ -1162,8 +1162,8 @@ function sidebar(){
   var rail=ui.collapsed, dark=isDark();
   var cur=curTheme(), her=cur==='heritage', nt=nextTheme(), NTN={dark:'dark',light:'light',heritage:'Heritage'};
   var fm=focusMonth(), ms=monthStats(fm), overB=S.budgets.filter(function(b){return (ms.cats[b.cat]||0)>b.limit}).length;
-  var actLoans=S.liabs.filter(function(l){return l.val>0}).length, nGoals=S.goals.length;
-  var BDGS={budgets:overB?'<span class="nav-bdg bad">'+overB+' over</span>':'',liabilities:actLoans?'<span class="nav-bdg">'+actLoans+'</span>':'',goals:nGoals?'<span class="nav-bdg">'+nGoals+'</span>':''};
+  var actLoans=S.liabs.filter(function(l){return l.val>0}).length, actLent=S.lent.filter(function(l){return lentCalc(l).due>0}).length, nGoals=S.goals.length;
+  var BDGS={budgets:overB?'<span class="nav-bdg bad">'+overB+' over</span>':'',liabilities:actLoans?'<span class="nav-bdg">'+actLoans+'</span>':'',lent:actLent?'<span class="nav-bdg">'+actLent+'</span>':'',goals:nGoals?'<span class="nav-bdg">'+nGoals+'</span>':''};
   var glink=function(v){return navLink(v,BDGS[v]||'')};
   var appear=rail?'<button type="button" class="toggle" style="margin:0 auto" data-act="theme-toggle" aria-label="Switch to '+NTN[nt]+' theme" title="Switch to '+NTN[nt]+' theme">'+ic(her?'gem':dark?'sun':'moon')+'</button>':
     appearanceSeg('data-act="theme" data-v');
@@ -1242,10 +1242,9 @@ function vOverview(){
   var out='<div class="stack-v ov-stack">';
   out+='<div class="greet ov-greet"><div><h2>'+greet+'</h2><p class="muted">'+new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</p></div>'+
     '<div class="qa"><button class="btn" data-act="open-txn">'+ic('plus')+'Transaction</button><button class="btn ghost" data-act="open-asset">'+ic('plus')+'Asset</button><button class="btn ghost" data-act="open-acct">'+ic('plus')+'Account</button><button class="btn ghost" data-act="open-lent">'+ic('plus')+'Lend</button></div></div>';
-  if(g.state!=='in')out+='<div class="card row ov-drive" aria-label="Google Drive sync"><div><b>Sync with Google Drive</b><p class="muted sm" role="status">'+esc(gDriveHint())+'</p></div>'+gButton()+'</div>';
   out+='<div class="ov-hero-grid"><div class="card ov-nw"><h2>Net worth</h2><div class="big">'+fmtINR(t.nw)+'</div>'+
     (delta!=null?'<p class="ov-delta '+(delta>=0?'good':'bad')+' mono sm" style="margin-top:6px">'+(delta>=0?'▲ ':'▼ ')+fmtINR(Math.abs(delta))+(prevNW?' ('+(delta>=0?'+':'−')+pc(Math.abs(delta/prevNW))+')':'')+' since '+esc(dayLabel(last.d))+'</p>':'<p class="muted sm" style="margin-top:6px">Save a snapshot to track change over time.</p>')+
-    '<div class="ov-nw-split" style="min-width:0;width:100%;margin-top:18px"><div class="row sm"><span class="muted">Assets '+fmtC(t.a)+'</span><span class="muted">Liabilities '+fmtC(t.l)+'</span></div><div class="stack" style="margin-top:6px"><span style="width:'+ap.toFixed(1)+'%;background:var(--c7)"></span><span style="width:'+(100-ap).toFixed(1)+'%;background:var(--bad)"></span></div><p class="muted sm" style="margin-top:6px">You own '+(t.l>0?(t.a/t.l).toFixed(1)+' times what you owe.':'everything outright, with no debt.')+'</p></div></div>'+
+    '<div class="ov-nw-split" style="min-width:0;width:100%;margin-top:18px"><div class="row sm"><span class="muted">Assets '+fmtC(t.a)+'</span><span class="muted">Liabilities '+fmtC(t.l)+'</span></div><div class="stack" style="margin-top:6px"><span style="width:'+ap.toFixed(1)+'%;background:var(--c7)"></span>'+(t.l>0?'<span style="width:'+(100-ap).toFixed(1)+'%;background:var(--bad)"></span>':'')+'</div><p class="muted sm" style="margin-top:6px">You own '+(t.l>0?(t.a/t.l).toFixed(1)+' times what you owe.':'everything outright, with no debt.')+'</p></div></div>'+
     '<div class="card ov-health"><div class="row"><h2>Financial health</h2>'+(h.score==null?'':'<span class="pill '+hb[0]+'">'+hb[1]+'</span>')+'</div>'+
     (h.score==null?'<p class="muted">Add accounts, income and spending to see your score.</p>':
       '<div class="row desk-only" style="margin-bottom:12px;align-items:baseline"><div class="big" style="font-size:38px">'+h.score+'<span class="muted" style="font-size:15px"> / 100</span></div></div>'+
@@ -1272,7 +1271,8 @@ function vOverview(){
     (sc.score==null?'<p class="muted">Log some spending and income to score your safety net.</p>':'<div class="row"><div class="mid">'+sc.score+'<span class="muted sm"> / 100</span></div><span class="pill '+band(sc.score/100)[0]+'">'+band(sc.score/100)[1]+'</span></div>'+
     '<dl class="kv" style="margin-top:12px"><dt>Emergency fund</dt><dd>'+(sc.efM==null?'–':sc.efM.toFixed(1)+' months')+'</dd><dt>Term cover</dt><dd>'+(sc.termNeed>0?pc(Math.min(1,S.safety.term/sc.termNeed),0)+' of suggested':'–')+'</dd><dt>Health cover</dt><dd>'+(S.safety.hbench>0?pc(Math.min(1,S.safety.health/S.safety.hbench),0)+' of benchmark':'–')+'</dd></dl>')+'</div>'+
     '<div class="card ov-goals"><div class="row"><h2>Goals</h2><a class="sm" href="#goals">Plan goals</a></div>'+
-    (S.goals.length?S.goals.map(function(g){var c=goalCalc(g);return '<div style="margin-bottom:12px"><div class="row"><b>'+esc(g.name)+'</b><span class="mono sm">'+(c.gap>0?fmtINR(c.sip)+' a month':'Fully funded')+'</span></div><div class="bar" style="margin-top:6px"><i style="width:'+(c.funded*100).toFixed(1)+'%"></i></div><p class="muted sm">'+pc(c.funded,0)+' covered by savings today, '+g.years+' years to go</p></div>'}).join(''):'<p class="muted">Add a goal to see the monthly SIP it needs.</p>')+'</div></div>';
+    (S.goals.length?S.goals.map(function(g){var c=goalCalc(g);return '<div style="margin-bottom:12px"><div class="row"><b>'+esc(g.name)+'</b><span class="mono sm">'+(c.gap>0?fmtINR(c.sip)+' a month':'Fully funded')+'</span></div><div class="bar" style="margin-top:6px"><i style="width:'+(c.funded*100).toFixed(1)+'%"></i></div><p class="muted sm">'+pc(c.funded,0)+' covered by savings today, '+g.years+' years to go</p></div>'}).join(''):'<p class="muted">Add a goal to see the monthly SIP it needs.</p>')+'</div></div>'+
+    (g.state!=='in'?'<div class="card row ov-drive" aria-label="Google Drive sync"><div><b>Sync with Google Drive</b><p class="muted sm" role="status">'+esc(gDriveHint())+'</p></div>'+gButton()+'</div>':'');
   return out+'</div>';
 }
 
@@ -1569,7 +1569,7 @@ function vAllocation(){
 function render(){
   var v=ui.view;
   var body=v==='accounts'?vAccounts():v==='assets'?vAssets():v==='liabilities'?vLiab():v==='budgets'?vBudgets():v==='settings'?vSettings():v==='news'?vNews():v==='cashflow'?vCashflow():v==='lent'?vLent():v==='goals'?vGoals():v==='safety'?vSafety():v==='allocation'?vAllocation():vOverview();
-  app.innerHTML=banner()+'<div class="shell"><div class="side-sp"></div>'+sidebar()+mobileHead()+'<main class="main">'+desktopHead()+'<div class="main-in">'+body+'</div><button class="fab" data-act="open-txn" aria-label="Add transaction">'+ic('plus')+'Add</button></main>'+bottomNav()+'</div>';
+  app.innerHTML=banner()+'<div class="shell"><div class="side-sp"></div>'+sidebar()+mobileHead()+'<main class="main">'+desktopHead()+'<div class="main-in">'+body+'</div></main>'+bottomNav()+'</div>';
 }
 function setStatus(t){statusTxt=t;var el=document.getElementById('status');if(el)el.textContent=t}
 function route(){var h=location.hash.slice(1);if(h==='holdings')h='assets';ui.view=VIEWS.indexOf(h)>=0?h:'overview'}
