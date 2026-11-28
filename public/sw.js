@@ -1,5 +1,5 @@
 /* Offline support. Change VERSION whenever you upload a new index.html so phones pick it up. */
-var VERSION='v25';
+var VERSION='v38';
 var CACHE='app-'+VERSION;
 var SHELL=['./','index.html','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/maskable-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(SHELL)}).then(function(){return self.skipWaiting()}))});
@@ -13,7 +13,7 @@ self.addEventListener('fetch',function(e){
   }
   if(u.origin!==location.origin||u.pathname==='/google-config.json')return;
   if(r.mode==='navigate'){
-    e.respondWith(fetch(r).then(function(res){var cp=res.clone();caches.open(CACHE).then(function(c){c.put('index.html',cp)});return res}).catch(function(){return caches.match('index.html')}));
+    e.respondWith(fetch(new Request(r.url,{cache:'no-store'})).then(function(res){var cp=res.clone();caches.open(CACHE).then(function(c){c.put('index.html',cp)});return res}).catch(function(){return caches.match('index.html')}));
     return;
   }
   e.respondWith(caches.match(r).then(function(m){return m||fetch(r).then(function(res){var cp=res.clone();caches.open(CACHE).then(function(c){c.put(r,cp)});return res})}));
